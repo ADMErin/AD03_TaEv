@@ -4,8 +4,17 @@ import java.sql.*;
 import java.util.*;
 
 public class Ej02 {
+	
+	/* Método main donde se hace la conexión a la BBDD,
+	 * Se piden datos por teclado
+	 * Se realiza una consulta preparada a la BBDD
+	 * Se recoge el resultado en un ResulSet, se muestra y se pide el nuevo dato
+	 * Se realiza el update de la BBDD
+	 * Se gestionan las excepciones
+	 * Se cierra la conexion, las consultas, los resultados y el scanner
+	 */
 
-public static void main(String[] args) {
+	public static void main(String[] args) {
 		
 		String baseDatos = "dbeventos";
 		String host = "localhost";
@@ -37,7 +46,9 @@ public static void main(String[] args) {
 				aforo = rs.getInt("capacidad");
 				System.out.println("La capacidad actual de la ubucacion '" + ubicacion + "' es: " + aforo);
 				
+				//se cierra la consulta y se reutiliza
 				consulta.close();
+				
 				System.out.print("Introduce la nueva capacidad máxima: ");
 				nuevoAforo = teclado.nextInt();
 				
@@ -46,12 +57,12 @@ public static void main(String[] args) {
 				consulta.setString(2, ubicacion);
 				int filas = consulta.executeUpdate();
 				
+				//Se comprueba que se ha actualizado el registro
 				if(filas == 1) {
 					System.out.println("Capacidad actualizada correctamente");
 				} else {
 					System.out.println("No se ha actualizado el aforo");
 				}
-				
 			} else {
 				System.out.print("Ubicacion no encontrada");
 			}

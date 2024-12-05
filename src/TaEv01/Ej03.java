@@ -5,11 +5,14 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-
 public class Ej03 {
-	
-public static void main(String[] args) {
-		
+
+	public static void main(String[] args) {
+		/*
+		 * Método main donde se hace la conexión a la BBDD,
+		 * Se llama al resto de métodos
+		 */
+
 		String baseDatos = "dbeventos";
 		String host = "localhost";
 		String port = "3306";
@@ -17,80 +20,105 @@ public static void main(String[] args) {
 		String urlConexion = "jdbc:mysql://" + host + ":" + port + "/" + baseDatos + parAdic;
 		String user = "dbeventos";
 		String pwd = "dbeventos";
-		
+
 		Scanner teclado = new Scanner(System.in);
-		
+
 		String dni = pedirDni(teclado);
-		
+
 		Connection conexion = null;
-		
+
 		try {
 
 			conexion = DriverManager.getConnection(urlConexion, user, pwd);
 			String nuevoAsistente = buscarAsistente(conexion, dni, teclado);
 			listaEventos(conexion);
 			eleccionEvento(conexion, teclado, nuevoAsistente);
-			
-		}catch (SQLException e) {
+
+		} catch (SQLException e) {
 			System.out.println("Mensaje " + e.getMessage());
 			System.out.println("Estado " + e.getSQLState());
 			System.out.println("Codigo especifico " + e.getErrorCode());
-		}catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace(System.err);
-		}finally {
+		} finally {
 			try {
-				if(conexion != null) conexion.close();
-				
-			} catch(Exception ex) {}
+				if (conexion != null)
+					conexion.close();
+
+			} catch (Exception ex) {
+			}
 		}
 		teclado.close();
 	}
 
-	public static String pedirDni(Scanner teclado) {                    
-		 String dni = "";
-		 Pattern formatoUsuario = Pattern.compile("[0-9]{8}[a-zA-Z]");
-		 Matcher comparaFormato = formatoUsuario.matcher(dni);
-		    
-		 do {
-		     System.out.println("Introduce el DNI del asistente: ");
-		     dni = teclado.nextLine();
-		     comparaFormato = formatoUsuario.matcher(dni);
-		 } while (!comparaFormato.matches());
-		    
-		 return dni;
+	/*
+	 * Metodo para pedir DNI 
+	 * Se usan expresiones regulares para dar formato
+	 * Recibe el Scanner
+	 * Devuelve un String con el dni
+	 */
+	public static String pedirDni(Scanner teclado) {
+		String dni = "";
+		Pattern formatoUsuario = Pattern.compile("[0-9]{8}[a-zA-Z]");
+		Matcher comparaFormato = formatoUsuario.matcher(dni);
+
+		do {
+			System.out.println("Introduce el DNI del asistente: ");
+			dni = teclado.nextLine();
+			comparaFormato = formatoUsuario.matcher(dni);
+		} while (!comparaFormato.matches());
+
+		return dni;
 	}
-	
+
+	/*
+	 * Método para buscar el DNI en la BBDd
+	 * Si no existe pide un nombre y lo inserta en la BBDD
+	 * Si existe informa del nombre del asistente
+	 * Recibe la conexxion, el scanner y el DNI
+	 * Devuelve el nombre del asistente
+	 */
 	public static String buscarAsistente(Connection conexion, String dni, Scanner teclado) {
 		String consultaUsuario = "Select nombre from asistentes where dni = ?";
 		String nuevoUsuario = "";
 		try {
-			PreparedStatement pst= conexion.prepareStatement(consultaUsuario);
+			PreparedStatement pst = conexion.prepareStatement(consultaUsuario);
 			pst.setString(1, dni);
 			ResultSet rsUsuario = pst.executeQuery();
-			
-			if(!rsUsuario.next()) {
+
+			if (!rsUsuario.next()) {
 				System.out.println("No se encontró un asistente con el DNI proporcionado.");
 				System.out.println("Introduce el nombre del nuevo asistente: ");
 				nuevoUsuario = teclado.nextLine();
-				
+
 				if (nuevoUsuario != null) {
 					String insertUsuario = "Insert into asistentes values(?, ?)";
-					
-					PreparedStatement inUsuario= conexion.prepareStatement(insertUsuario);
+
+					PreparedStatement inUsuario = conexion.prepareStatement(insertUsuario);
 					inUsuario.setString(1, dni);
 					inUsuario.setString(2, nuevoUsuario);
 					inUsuario.executeUpdate();
+					
+					inUsuario.close();
 				}
 			} else {
 				nuevoUsuario = rsUsuario.getString("nombre");
 				System.out.println("Estas realizando la reserva para: " + nuevoUsuario);
 			}
-		} catch(SQLException e) {
+			pst.close();
+			rsUsuario.close();
+			
+		} catch (SQLException e) {
 			System.err.println("Error " + e.getMessage());
 		}
 		return nuevoUsuario;
 	}
-	
+
+	/*
+	 * Método que muestra la lista de eventos
+	 * Recibe la conexion
+	 * No devuelve nada
+	 */
 	public static void listaEventos(Connection conexion) {
 		System.out.println("Lista de eventos: ");
 		String listadoConsulta = "SELECT asistentes_eventos.id_evento as id, eventos.nombre_evento as nombre, ubicaciones.capacidad - count(asistentes_eventos.id_evento) as plazas \r\n"
@@ -105,20 +133,26 @@ public static void main(String[] args) {
 				String evento = rs.getString("nombre");
 				int plazas = rs.getInt("plazas");
 				System.out.println(id + ". " + evento + " - Espacios disponibles: " + plazas);
-				
 			}
-			
-		} catch(SQLException e) {
+			consulta.close();
+			rs.close();
+		} catch (SQLException e) {
 			System.err.println("Error " + e.getMessage());
 		}
 	}
-	
+
+	/*
+	 * Método para seleccionar el evento e incluir el asistente al evento en la BBDD
+	 * Comprueba las plazas disponibles
+	 * Recibe la conexión, el scanner y el string con el asistente
+	 * No devuelve nada
+	 */
 	public static void eleccionEvento(Connection conexion, Scanner teclado, String nuevoAsistente) {
 		System.out.println("Elige el numero de evento al que quiere asistir: ");
 		int id_evento = teclado.nextInt();
-		
+
 		String inUsuarioEvento = "Insert into asistentes_eventos values ((select dni from asistentes where nombre = ?), ?) ;";
-		
+
 		String plazasEvento = "SELECT ubicaciones.capacidad - count(asistentes_eventos.id_evento) as plazas \r\n"
 				+ "FROM asistentes_eventos inner join eventos on eventos.id_evento = asistentes_eventos.id_evento \r\n"
 				+ "inner join ubicaciones on ubicaciones.id_ubicacion = eventos.id_ubicacion where eventos.id_evento = ?\r\n"
@@ -129,24 +163,28 @@ public static void main(String[] args) {
 			PreparedStatement numPlazas = conexion.prepareStatement(plazasEvento);
 			numPlazas.setInt(1, id_evento);
 			ResultSet rs = numPlazas.executeQuery();
-			
-			if(rs.next()) {
+
+			if (rs.next()) {
 				plazas = rs.getInt("plazas");
 			}
-
-			if(plazas != 0) {
-				PreparedStatement pst= conexion.prepareStatement(inUsuarioEvento);
+			if (plazas != 0) {
+				PreparedStatement pst = conexion.prepareStatement(inUsuarioEvento);
 				pst.setString(1, nuevoAsistente);
 				pst.setInt(2, id_evento);
 				pst.executeUpdate();
 				System.out.println(nuevoAsistente + " ha sido registrado para el evento seleccionado");
 				
+				pst.close();
+
 			} else {
 				System.out.println("No hay plazas disponibles para ese evento");
 			}
-		} catch(SQLException e) {
+			numPlazas.close();
+			rs.close();
+			
+		} catch (SQLException e) {
 			System.out.println("El asistente ya figura en el registro de ese evento.");
-			//System.err.println("Error " + e.getMessage());
+			// System.err.println("Error " + e.getMessage());
 		}
 	}
 }
